@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('pedido_id')->constrained()->onDelete('cascade');
             $table->foreignId('produto_id')->constrained()->onDelete('cascade');
-            $table->foreignId('variacao_id')->nullable()->constrained()->onDelete('cascade');
+            $table->foreignId('variacao_id')->nullable()->constrained('variacoes')->onDelete('cascade');
             $table->integer('quantidade');
             $table->decimal('preco_unitario', 10, 2);
             $table->timestamps();

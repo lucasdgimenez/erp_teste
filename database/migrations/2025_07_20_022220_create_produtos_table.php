@@ -17,7 +17,6 @@ return new class extends Migration
             $table->text('slug')->nullable();
             $table->decimal('preco_base', 10, 2);
             $table->timestamps();
-            $table->timestamps();
         });
     }
 

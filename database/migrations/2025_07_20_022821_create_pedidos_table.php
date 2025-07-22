@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('pedidos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('cupom_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('cupom_id')->nullable()->constrained('cupons')->onDelete('set null');
             $table->decimal('subtotal', 10, 2);
             $table->decimal('frete', 10, 2);
             $table->decimal('desconto', 10, 2)->default(0);
