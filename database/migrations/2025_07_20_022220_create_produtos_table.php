@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('produtos', function (Blueprint $table) {
             $table->id();
+            $table->string('nome');
             $table->text('descricao')->nullable();
-            $table->text('slug')->nullable();
+            $table->string('slug')->unique();
             $table->decimal('preco_base', 10, 2);
             $table->timestamps();
         });
