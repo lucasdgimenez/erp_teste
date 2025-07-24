@@ -11,7 +11,13 @@ use App\Models\Estoque;
 class ProdutoController extends Controller
 {
     public function index() {
-        $produtos = Produto::orderBy('created_at', 'desc')->get();
+        $produtos = getProdutos();
+        return view('produtos.index', compact('produtos'));
+    }
+
+    public function show(Request $request) {
+        dd("Opa");
+        $produtos = getProdutos();
         return view('produtos.index', compact('produtos'));
     }
 
