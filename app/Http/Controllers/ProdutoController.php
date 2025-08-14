@@ -16,7 +16,6 @@ class ProdutoController extends Controller
     }
 
     public function show(Request $request) {
-        dd("Opa");
         $produtos = getProdutos();
         return view('produtos.index', compact('produtos'));
     }

@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             ProdutoSeeder::class,
             UserSeeder::class,
             VariacaoSeeder::class,
+            CupomSeeder::class,
             EstoqueSeeder::class,
             PedidoItemSeeder::class,
         ]);

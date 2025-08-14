@@ -3,6 +3,11 @@
 @section('title', $produto->nome)
 
 @section('content')
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="container my-5">
     {{-- Breadcrumb --}}
     <nav aria-label="breadcrumb" class="mb-4">
@@ -182,11 +187,39 @@
                         </div>
                     </div>
                 @endif
-
-            
             </div>
         </div>
     </div>
+</div>
+
+{{-- Modal do Carrinho --}}
+<div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cartModalLabel">
+          <i class="fas fa-shopping-cart me-2"></i>Seu Carrinho
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="cartItemsContainer">
+          <!-- Itens do carrinho aparecerão aqui -->
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <h5 class="mb-0">Total: <span id="cartTotal" class="text-success">R$ 0,00</span></h5>
+        <div>
+          <button type="button" class="btn btn-outline-danger me-2" id="clearCartBtn">
+            <i class="fas fa-trash me-1"></i>Limpar Carrinho
+          </button>
+          <button type="button" class="btn btn-primary" id="goToCheckoutBtn">
+            <i class="fas fa-credit-card me-1"></i>Finalizar Compra
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 {{-- CSS Personalizado --}}
@@ -242,6 +275,27 @@
     cursor: not-allowed;
 }
 
+.cart-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-controls button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 @media (max-width: 768px) {
     .display-5 {
         font-size: 1.8rem;
@@ -258,8 +312,16 @@
     .variation-card {
         margin-bottom: 1rem;
     }
+
+    .cart-item-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
 }
 </style>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 {{-- JavaScript --}}
 <script>
@@ -267,7 +329,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedVariation = null;
     let selectedPrice = 0;
     let selectedVariationName = '';
-    let cart = [];
 
     // Elementos DOM
     const variationCards = document.querySelectorAll('.variation-card');
@@ -360,31 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Adicionar ao carrinho
-    /*addToCartBtn.addEventListener('click', function () {
-        if (!selectedVariation) {
-            alert('Por favor, selecione uma variação primeiro.');
-            return;
-        }
-
-        const quantity = parseInt(quantityInput.value);
-
-        // Adicionar item ao array do carrinho
-        cart.push({
-            produto_id: {{ $produto->id }},
-            nome: '{{ $produto->nome }}',
-            variacao_id: selectedVariation,
-            variacao_nome: selectedVariationName,
-            quantidade: quantity,
-            preco: selectedPrice
-        });
-
-        // Atualizar modal e abrir
-        renderCart();
-        const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-        cartModal.show();
-    });*/
-
+    // Adicionar ao carrinho usando o controller
     addToCartBtn.addEventListener('click', function () {
         if (!selectedVariation) {
             alert('Por favor, selecione uma variação primeiro.');
@@ -397,7 +434,8 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
                 produto_id: {{ $produto->id }},
@@ -405,22 +443,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 quantidade: quantity
             })
         })
-        .then(res => res.json())
+        .then(response => {
+            if (!response.ok) {
+                console.log("error: ", response)
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Resposta não é JSON válido!");
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.erro) {
+                console.log("Erro: ", data)
                 alert(data.erro);
             } else {
                 alert(data.mensagem);
-                // Atualiza o carrinho visual, se quiser
+                // Atualizar o carrinho no modal e abrir
+                renderCart(data.carrinho);
+                const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+                cartModal.show();
             }
         })
         .catch(err => {
-            console.error(err);
-            alert('Erro ao adicionar ao carrinho.');
+            console.error('Erro detalhado:', err);
+            alert('Erro ao adicionar ao carrinho: ' + err.message);
         });
     });
-
-
 
     // Comprar agora
     if (buyNowBtn) {
@@ -440,132 +490,218 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Lista de desejos
-    const wishlistBtn = document.getElementById('wishlistBtn');
-    if (wishlistBtn) {
-        wishlistBtn.addEventListener('click', function() {
-            const icon = this.querySelector('i');
-            if (icon.classList.contains('far')) {
-                icon.classList.remove('far');
-                icon.classList.add('fas');
-                this.classList.remove('btn-outline-danger');
-                this.classList.add('btn-danger');
-                this.innerHTML = '<i class="fas fa-heart me-1"></i>Na Lista';
-            } else {
-                icon.classList.remove('fas');
-                icon.classList.add('far');
-                this.classList.remove('btn-danger');
-                this.classList.add('btn-outline-danger');
-                this.innerHTML = '<i class="far fa-heart me-1"></i>Lista de Desejos';
+    // Funções para gerenciar o carrinho via controller
+    window.updateQuantity = function(produtoId, variacaoId, delta) {
+        const currentQty = parseInt(document.querySelector(`[data-produto-id="${produtoId}"][data-variacao-id="${variacaoId}"] .quantity-display`).textContent);
+        const newQty = currentQty + delta;
+        
+        if (newQty < 1) return;
+
+        fetch("{{ route('carrinho.atualizar') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                produto_id: produtoId,
+                variacao_id: variacaoId,
+                quantidade: newQty
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Resposta não é JSON válido!");
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.erro) {
+                alert(data.erro);
+            } else {
+                renderCart(data.carrinho);
+            }
+        })
+        .catch(err => {
+            console.error('Erro detalhado:', err);
+            alert('Erro ao atualizar quantidade: ' + err.message);
         });
-    }
-
-    // Copiar URL
-    const copyUrlBtn = document.getElementById('copyUrl');
-    if (copyUrlBtn) {
-        copyUrlBtn.addEventListener('click', function() {
-            const urlInput = document.getElementById('productUrl');
-            urlInput.select();
-            document.execCommand('copy');
-            
-            this.innerHTML = '<i class="fas fa-check"></i>';
-            setTimeout(() => {
-                this.innerHTML = '<i class="fas fa-copy"></i>';
-            }, 2000);
-        });
-    }
-
-    // Compartilhamento social
-    const productName = '{{ $produto->nome }}';
-    const productUrl = '{{ url()->current() }}';
-
-    window.updateQuantity = function(index, delta) {
-        cart[index].quantidade += delta;
-        if (cart[index].quantidade < 1) {
-            cart[index].quantidade = 1;
-        }
-        renderCart();
     };
 
-    window.removeItem = function(index) {
-        cart.splice(index, 1);
-        renderCart();
+    window.removeItem = function(produtoId, variacaoId) {
+        if (!confirm('Deseja remover este item do carrinho?')) return;
+
+        fetch("{{ route('carrinho.remover') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                produto_id: produtoId,
+                variacao_id: variacaoId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Resposta não é JSON válido!");
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.erro) {
+                alert(data.erro);
+            } else {
+                renderCart(data.carrinho);
+            }
+        })
+        .catch(err => {
+            console.error('Erro detalhado:', err);
+            alert('Erro ao remover item: ' + err.message);
+        });
     };
 
-    
-    function renderCart() {
+    // Limpar carrinho
+    document.getElementById('clearCartBtn').addEventListener('click', function() {
+        if (!confirm('Deseja limpar todo o carrinho?')) return;
+
+        fetch("{{ route('carrinho.limpar') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Resposta não é JSON válido!");
+            }
+            return response.json();
+        })
+        .then(data => {
+            renderCart(data.carrinho);
+        })
+        .catch(err => {
+            console.error('Erro detalhado:', err);
+            alert('Erro ao limpar carrinho: ' + err.message);
+        });
+    });
+
+    // Função para renderizar o carrinho no modal
+    function renderCart(carrinhoData) {
         const container = document.getElementById('cartItemsContainer');
         const cartTotal = document.getElementById('cartTotal');
-        container.innerHTML = '';
-        let total = 0;
 
-        if (cart.length === 0) {
+        console.log("CHECAGEM DE ATUALIZACAO DE CARRINHO")
+        console.log("carrinhoData: ", carrinhoData)
+        console.log("carrinhoData.itens: ", carrinhoData.itens)
+        console.log("carrinhoData.itens.length: ", carrinhoData.itens.length)
+        
+        if (!carrinhoData || !carrinhoData.itens || carrinhoData.itens.length === 0) {
             container.innerHTML = '<p class="text-center text-muted">Seu carrinho está vazio.</p>';
             cartTotal.textContent = 'R$ 0,00';
             return;
         }
 
-        cart.forEach((item, index) => {
-            const subtotal = item.quantidade * item.preco;
-            total += subtotal;
-
-            const itemHtml = `
-                <div class="card mb-3">
-                    <div class="card-body d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">${item.nome}</h6>
-                            <small class="text-muted">Variação: ${item.variacao_nome}</small><br>
-                            <small class="text-muted">Preço unitário: R$ ${item.preco.toFixed(2).replace('.', ',')}</small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <button class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(${index}, -1)">-</button>
-                            <span>${item.quantidade}</span>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(${index}, 1)">+</button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="removeItem(${index})">
-                                <i class="fas fa-trash"></i>
-                            </button>
+        let html = '';
+        console.log("Testando 1")
+        carrinhoData.itens.forEach(item => {
+            html += `
+                <div class="card mb-3" data-produto-id="${item.produto_id}" data-variacao-id="${item.variacao_id}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">${item.nome}</h6> 
+                                <small class="text-muted">Variação: ${item.variacao_nome}</small><br>
+                                <small class="text-muted">Preço unitário: R$ ${item.preco}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="cart-item-actions">
+                                    <div class="quantity-controls">
+                                        <button class="btn btn-outline-secondary btn-sm" 
+                                                onclick="updateQuantity(${item.produto_id}, ${item.variacao_id}, -1)">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <span class="quantity-display px-2">${item.quantidade}</span>
+                                        <button class="btn btn-outline-secondary btn-sm" 
+                                                onclick="updateQuantity(${item.produto_id}, ${item.variacao_id}, 1)">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-center">
+                                        <strong>R$ ${item.subtotal.toFixed(2).replace('.', ',')}</strong>
+                                    </div>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="removeItem(${item.produto_id}, ${item.variacao_id})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
-            container.innerHTML += itemHtml;
         });
 
-        cartTotal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        console.log("Testando 2")
+        container.innerHTML = html;
+        console.log("Testando 3")
+        cartTotal.textContent = `R$ ${carrinhoData.total.toFixed(2).replace('.', ',')}`;
+        console.log("Testando 4")
     }
 
-    
+    // Carregar carrinho ao abrir o modal
+    document.getElementById('cartModal').addEventListener('show.bs.modal', function() {
+        fetch("{{ route('carrinho.obter') }}", {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+                console.log("response: ", response)
+            }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Resposta não é JSON válido!");
+            }
+            return response.json();
+        })
+        .then(data => {
+            renderCart(data.carrinho);
+        })
+        .catch(err => {
+            console.error('Erro detalhado3:', err);
+            document.getElementById('cartItemsContainer').innerHTML = '<p class="text-center text-danger">Erro ao carregar carrinho: ' + err.message + '</p>';
+        });
+    });
 
+    // Finalizar compra
+    document.getElementById('goToCheckoutBtn').addEventListener('click', function() {
+        // Redirecionar para página de checkout
 
+        //.toFixed(2).replace('.', ',')
+        window.location.href = "{{ route('carrinho.verCarrinho') }}";
+    });
 });
-
-
 </script>
-
-{{-- Modal do Carrinho --}}
-<div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="cartModalLabel">
-          <i class="fas fa-shopping-cart me-2"></i>Seu Carrinho
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="cartItemsContainer">
-          <!-- Itens do carrinho aparecerão aqui -->
-        </div>
-      </div>
-      <div class="modal-footer justify-content-between">
-        <h5 class="mb-0">Total: <span id="cartTotal" class="text-success">R$ 0,00</span></h5>
-        <button type="button" class="btn btn-primary" id="goToCheckoutBtn">
-          Finalizar Compra
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 @endsection

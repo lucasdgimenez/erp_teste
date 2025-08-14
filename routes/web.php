@@ -5,6 +5,7 @@ use App\Http\Controllers\ProdutoController;
 use App\Http\Controllers\EstoqueController;
 use App\Http\Controllers\LojaController;
 use App\Http\Controllers\CarrinhoController;
+use App\Http\Controllers\CupomController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -22,11 +23,19 @@ Route::get('/estoque/{id}', [EstoqueController::class, 'edit'])->name('estoque.e
 Route::put('/estoque', [EstoqueController::class, 'update'])->name('estoque.update');
 
 Route::get('/loja', [LojaController::class, 'index'])->name('produtos.lista');
+
+Route::prefix('carrinho')->name('carrinho.')->group(function () {
+    Route::post('/adicionar', [CarrinhoController::class, 'adicionar'])->name('adicionar');
+    Route::post('/atualizar', [CarrinhoController::class, 'atualizar'])->name('atualizar');
+    Route::post('/remover', [CarrinhoController::class, 'remover'])->name('remover');
+    Route::post('/limpar', [CarrinhoController::class, 'limpar'])->name('limpar');
+    Route::get('/obter', [CarrinhoController::class, 'obterCarrinho'])->name('obter');
+    Route::get('/ver', [CarrinhoController::class, 'verCarrinho'])->name('verCarrinho');
+    Route::get('/', [CarrinhoController::class, 'index'])->name('listar');
+});
+
+Route::get('/cupom', [CupomController::class, 'new'])->name('cupons.novo');
+Route::get('/cupons', [CupomController::class, 'index'])->name('cupons.listar');
+Route::post('/cupom', [CupomController::class, 'store'])->name('cupons.create');
+
 Route::get('/{slug}/{id_produto}', [LojaController::class, 'show'])->name('produto.item');
-
-Route::post('/carrinho', [CarrinhoController::class, 'adicionar'])->name('carrinho.adicionar');
-Route::delete('/carrinho', [CarrinhoController::class, 'remover'])->name('carrinho.remover');
-Route::put('/carrinho', [CarrinhoController::class, 'atualizar'])->name('carrinho.atualizar');
-Route::get('/carrinho', [CarrinhoController::class, 'verCarrinho'])->name('carrinho.ver');
-Route::post('/carrinho/limpar', [CarrinhoController::class, 'limpar'])->name('carrinho.limpar');
-

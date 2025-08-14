@@ -12,7 +12,7 @@
         <div class="container mt-5">
             <h2 class="mb-4">Cadastrar Produto</h2>
 
-            <form action="{{ route('produtos.create') }}" method="POST">
+            <form action="{{ route('produtos.store') }}" method="POST">
                 @csrf
 
                 <div class="mb-3">
@@ -65,39 +65,42 @@
 <!-- Bootstrap JS + Script -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    let index = 1;
+    document.addEventListener('DOMContentLoaded', function() {
+        let index = 1;
 
-    document.getElementById('add-variacao').addEventListener('click', function () {
-        const container = document.getElementById('variacoes-container');
-        const newItem = document.createElement('div');
-        newItem.classList.add('row', 'g-2', 'mb-3', 'variacao-item', 'align-items-end');
+        document.getElementById('add-variacao').addEventListener('click', function () {
+            const container = document.getElementById('variacoes-container');
+            const newItem = document.createElement('div');
+            newItem.classList.add('row', 'g-2', 'mb-3', 'variacao-item', 'align-items-end');
 
-        newItem.innerHTML = `
-            <div class="col-md-4">
-                <label class="form-label">Nome</label>
-                <input type="text" name="variacoes[${index}][nome]" class="form-control" placeholder="ex: Tamanho G">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Preço</label>
-                <input type="number" step="0.01" name="variacoes[${index}][preco]" class="form-control" placeholder="Preço">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Estoque</label>
-                <input type="number" name="variacoes[${index}][estoque]" class="form-control" placeholder="Estoque">
-            </div>
-            <div class="col-md-2 d-grid">
-                <button type="button" class="btn btn-danger remove-variacao">Remover</button>
-            </div>
-        `;
-        container.appendChild(newItem);
-        index++;
-    });
+            newItem.innerHTML = `
+                <div class="col-md-4">
+                    <label class="form-label">Nome</label>
+                    <input type="text" name="variacoes[${index}][nome]" class="form-control" placeholder="ex: Tamanho G">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preço</label>
+                    <input type="number" step="0.01" name="variacoes[${index}][preco]" class="form-control" placeholder="Preço">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estoque</label>
+                    <input type="number" name="variacoes[${index}][estoque]" class="form-control" placeholder="Estoque">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-danger remove-variacao">Remover</button>
+                </div>
+            `;
+            container.appendChild(newItem);
+            index++;
+        });
 
-    document.addEventListener('click', function (e) {
-        if (e.target.classList.contains('remove-variacao')) {
-            e.target.closest('.variacao-item').remove();
-        }
-    });
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-variacao')) {
+                e.target.closest('.variacao-item').remove();
+            }
+        });
+    })
+    
 </script>
 </body>
 </html>
